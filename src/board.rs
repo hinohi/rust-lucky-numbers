@@ -1,4 +1,8 @@
-use std::num::NonZeroU8;
+use std::{
+    collections::HashMap,
+    fmt::{self, Write},
+    num::NonZeroU8,
+};
 
 pub type Number = NonZeroU8;
 
@@ -28,14 +32,11 @@ pub struct Square {
     square: [[Option<Number>; 4]; 4],
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Board {
+    turn: usize,
     squares: Vec<Square>,
-    table: Vec<Number>,
-}
-
-pub trait Stack {
-    fn pop(&mut self) -> Number;
+    table: HashMap<Number, u8>,
 }
 
 impl Square {
@@ -100,6 +101,169 @@ impl Square {
         }
         count
     }
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum Action {
+    StackToSquare(usize, usize, Number),
+    StackToTable(Number),
+    TableToSquare(usize, usize, Number),
+}
+
+impl Board {
+    pub fn new(n: usize, stack: &mut Vec<Number>) -> Board {
+        let mut squares = Vec::with_capacity(n);
+        for _ in 0..n {
+            let mut sq = Square::default();
+            let mut diagonal = (0..4).map(|_| stack.pop().unwrap()).collect::<Vec<_>>();
+            diagonal.sort();
+            for (i, num) in diagonal.into_iter().enumerate() {
+                sq.put_unchecked(i, i, num);
+            }
+            squares.push(sq);
+        }
+        Board {
+            turn: 0,
+            squares,
+            table: HashMap::new(),
+        }
+    }
+
+    fn square_mut(&mut self) -> &mut Square {
+        let i = self.turn % self.squares.len();
+        self.squares.get_mut(i).unwrap()
+    }
+
+    fn square(&self) -> &Square {
+        let i = self.turn % self.squares.len();
+        self.squares.get(i).unwrap()
+    }
+
+    fn take_from_table(&mut self, num: Number) -> Result<(), ()> {
+        let c = self.table.entry(num).or_insert(0);
+        if *c > 0 {
+            *c -= 1;
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+
+    fn put_to_table(&mut self, num: Number) {
+        *self.table.entry(num).or_insert(0) += 1;
+    }
+
+    fn put_to_square_unchecked(&mut self, row: usize, col: usize, num: Number) {
+        if let Some(n) = self.square_mut().put_unchecked(row, col, num) {
+            self.put_to_table(n)
+        }
+    }
+
+    fn put_to_square(&mut self, row: usize, col: usize, num: Number) -> Result<(), ()> {
+        match self.square_mut().put(row, col, num) {
+            Ok(Some(n)) => {
+                self.put_to_table(n);
+                Ok(())
+            }
+            Ok(None) => Ok(()),
+            Err(()) => Err(()),
+        }
+    }
+
+    pub fn put_unchecked(&mut self, action: Action) {
+        match action {
+            Action::StackToSquare(row, col, num) => self.put_to_square_unchecked(row, col, num),
+            Action::StackToTable(num) => self.put_to_table(num),
+            Action::TableToSquare(row, col, num) => {
+                self.take_from_table(num).unwrap();
+                self.put_to_square_unchecked(row, col, num);
+            }
+        }
+        self.turn += 1;
+    }
+
+    pub fn put(&mut self, action: Action) -> Result<(), ()> {
+        match action {
+            Action::StackToSquare(row, col, num) => self.put_to_square(row, col, num)?,
+            Action::StackToTable(num) => self.put_to_table(num),
+            Action::TableToSquare(row, col, num) => {
+                self.take_from_table(num)?;
+                self.put_to_square(row, col, num)?;
+            }
+        };
+        self.turn += 1;
+        Ok(())
+    }
+
+    pub fn candidates_from_table(&self) -> Vec<(usize, usize, Number)> {
+        let mut candidates = Vec::new();
+        for (&num, _) in self.table.iter() {
+            for row in 0..4 {
+                for col in 0..4 {
+                    if self.square().can_put(row, col, num) {
+                        candidates.push((row, col, num));
+                    }
+                }
+            }
+        }
+        candidates
+    }
+
+    pub fn counts(&self) -> Vec<u8> {
+        self.squares.iter().map(|s| s.count()).collect()
+    }
+}
+
+impl fmt::Display for Board {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("table:")?;
+        let mut tables = self
+            .table
+            .iter()
+            .filter_map(|(n, c)| if *c == 0 { None } else { Some((*n, *c)) })
+            .collect::<Vec<_>>();
+        tables.sort();
+        for (n, c) in tables {
+            for _ in 0..c {
+                f.write_str(&format!(" {}", n))?;
+            }
+        }
+        f.write_char('\n')?;
+        for i in 0..self.squares.len() {
+            f.write_str("   A  B  C  D")?;
+            if i + 1 != self.squares.len() {
+                f.write_str("    ")?;
+            }
+        }
+        f.write_char('\n')?;
+        for row in 0..4 {
+            for (i, square) in self.squares.iter().enumerate() {
+                if i != 0 {
+                    f.write_str("   ")?;
+                }
+                f.write_str(&format!("{}|", row + 1))?;
+                for col in 0..4 {
+                    match square.square[row][col] {
+                        Some(n) => f.write_str(&format!("{:2}|", n))?,
+                        None => f.write_str("  |")?,
+                    }
+                }
+            }
+            f.write_char('\n')?;
+        }
+        f.write_str(&format!("next player: {}", self.turn % self.squares.len()))?;
+        Ok(())
+    }
+}
+
+pub fn new_stack(n: usize) -> Vec<Number> {
+    let mut stack = Vec::with_capacity(n * 20);
+    for _ in 0..n {
+        for i in 1..=20 {
+            stack.push(NonZeroU8::new(i).unwrap());
+        }
+    }
+    stack
 }
 
 #[cfg(test)]
