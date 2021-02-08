@@ -116,10 +116,16 @@ impl Square {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub enum Action {
+pub enum PutAction {
     StackToSquare(usize, usize, Number),
     StackToTable(Number),
     TableToSquare(usize, usize, Number),
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum TurnAction {
+    PopStack,
+    Put(PutAction),
 }
 
 impl Board {
@@ -182,11 +188,11 @@ impl Board {
         }
     }
 
-    pub fn put_unchecked(&mut self, action: Action) {
+    pub fn put_unchecked(&mut self, action: PutAction) {
         match action {
-            Action::StackToSquare(row, col, num) => self.put_to_square_unchecked(row, col, num),
-            Action::StackToTable(num) => self.put_to_table(num),
-            Action::TableToSquare(row, col, num) => {
+            PutAction::StackToSquare(row, col, num) => self.put_to_square_unchecked(row, col, num),
+            PutAction::StackToTable(num) => self.put_to_table(num),
+            PutAction::TableToSquare(row, col, num) => {
                 self.take_from_table(num).unwrap();
                 self.put_to_square_unchecked(row, col, num);
             }
@@ -194,11 +200,11 @@ impl Board {
         self.turn += 1;
     }
 
-    pub fn put(&mut self, action: Action) -> Result<(), ()> {
+    pub fn put(&mut self, action: PutAction) -> Result<(), ()> {
         match action {
-            Action::StackToSquare(row, col, num) => self.put_to_square(row, col, num)?,
-            Action::StackToTable(num) => self.put_to_table(num),
-            Action::TableToSquare(row, col, num) => {
+            PutAction::StackToSquare(row, col, num) => self.put_to_square(row, col, num)?,
+            PutAction::StackToTable(num) => self.put_to_table(num),
+            PutAction::TableToSquare(row, col, num) => {
                 self.take_from_table(num)?;
                 self.put_to_square(row, col, num)?;
             }
@@ -209,7 +215,10 @@ impl Board {
 
     pub fn candidates_from_table(&self) -> Vec<(usize, usize, Number)> {
         let mut candidates = Vec::new();
-        for (&num, _) in self.table.iter() {
+        for (&num, c) in self.table.iter() {
+            if *c == 0 {
+                continue;
+            }
             for (row, col) in self.square().candidates(num) {
                 candidates.push((row, col, num));
             }

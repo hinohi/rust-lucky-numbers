@@ -3,12 +3,7 @@ use std::io::{stdin, stdout, BufRead, Write};
 use rand::{seq::SliceRandom, SeedableRng};
 use rand_pcg::Mcg128Xsl64;
 
-use lucky_numbers::{new_stack, Action, Board, Number};
-
-enum UserInput {
-    PopStack,
-    Action(Action),
-}
+use lucky_numbers::{new_stack, Board, Number, PutAction, TurnAction};
 
 fn parse_pos(s: &str) -> Option<(usize, usize)> {
     let mut row = None;
@@ -27,7 +22,7 @@ fn parse_pos(s: &str) -> Option<(usize, usize)> {
     }
 }
 
-fn parse_input(num: Option<Number>) -> UserInput {
+fn parse_input(num: Option<Number>) -> TurnAction {
     let stdin = stdin();
     let mut cin = stdin.lock();
     loop {
@@ -39,10 +34,10 @@ fn parse_input(num: Option<Number>) -> UserInput {
                 let mut s = String::new();
                 cin.read_line(&mut s).unwrap();
                 if s.trim() == "table" {
-                    return UserInput::Action(Action::StackToTable(num));
+                    return TurnAction::Put(PutAction::StackToTable(num));
                 }
                 if let Some((row, col)) = parse_pos(s.trim()) {
-                    return UserInput::Action(Action::StackToSquare(row, col, num));
+                    return TurnAction::Put(PutAction::StackToSquare(row, col, num));
                 }
             }
             None => {
@@ -51,14 +46,14 @@ fn parse_input(num: Option<Number>) -> UserInput {
                 let mut s = String::new();
                 cin.read_line(&mut s).unwrap();
                 if s.trim() == "pop" || s.trim() == "stack" || s.trim() == "pop stack" {
-                    return UserInput::PopStack;
+                    return TurnAction::PopStack;
                 }
                 let mut words = s.split_whitespace();
                 let n = words.next().and_then(|s| s.parse().ok());
                 let row_col = words.next().and_then(|s| parse_pos(s));
                 match (n, row_col) {
                     (Some(n), Some((row, col))) => {
-                        return UserInput::Action(Action::TableToSquare(row, col, n))
+                        return TurnAction::Put(PutAction::TableToSquare(row, col, n))
                     }
                     _ => (),
                 }
@@ -84,8 +79,8 @@ fn main() {
                 println!("{:?}", board.candidates_with_num(num));
             }
             match parse_input(pop) {
-                UserInput::PopStack => pop = stack.pop(),
-                UserInput::Action(action) => match board.put(action) {
+                TurnAction::PopStack => pop = stack.pop(),
+                TurnAction::Put(action) => match board.put(action) {
                     Ok(()) => continue 'GAME,
                     Err(()) => (),
                 },
