@@ -90,6 +90,18 @@ impl Square {
         true
     }
 
+    pub fn candidates(&self, num: Number) -> Vec<(usize, usize)> {
+        let mut candidates = Vec::new();
+        for row in 0..4 {
+            for col in 0..4 {
+                if self.can_put(row, col, num) {
+                    candidates.push((row, col));
+                }
+            }
+        }
+        candidates
+    }
+
     pub fn count(&self) -> u8 {
         let mut count = 0;
         for row in self.square.iter() {
@@ -198,15 +210,15 @@ impl Board {
     pub fn candidates_from_table(&self) -> Vec<(usize, usize, Number)> {
         let mut candidates = Vec::new();
         for (&num, _) in self.table.iter() {
-            for row in 0..4 {
-                for col in 0..4 {
-                    if self.square().can_put(row, col, num) {
-                        candidates.push((row, col, num));
-                    }
-                }
+            for (row, col) in self.square().candidates(num) {
+                candidates.push((row, col, num));
             }
         }
         candidates
+    }
+
+    pub fn candidates_with_num(&self, num: Number) -> Vec<(usize, usize)> {
+        self.square().candidates(num)
     }
 
     pub fn counts(&self) -> Vec<u8> {

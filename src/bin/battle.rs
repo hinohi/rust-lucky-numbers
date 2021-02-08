@@ -1,5 +1,8 @@
 use std::io::{stdin, stdout, BufRead, Write};
 
+use rand::{seq::SliceRandom, SeedableRng};
+use rand_pcg::Mcg128Xsl64;
+
 use lucky_numbers::{new_stack, Action, Board, Number};
 
 enum UserInput {
@@ -65,7 +68,9 @@ fn parse_input(num: Option<Number>) -> UserInput {
 }
 
 fn main() {
+    let mut rng = Mcg128Xsl64::from_entropy();
     let mut stack = new_stack(2);
+    stack.shuffle(&mut rng);
     let mut board = Board::new(2, &mut stack);
     'GAME: while !stack.is_empty() {
         let counts = board.counts();
@@ -75,6 +80,9 @@ fn main() {
         println!("\n{}", board);
         let mut pop = None;
         loop {
+            if let Some(num) = pop {
+                println!("{:?}", board.candidates_with_num(num));
+            }
             match parse_input(pop) {
                 UserInput::PopStack => pop = stack.pop(),
                 UserInput::Action(action) => match board.put(action) {

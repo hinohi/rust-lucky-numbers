@@ -5,3 +5,5 @@ authors = ["Nakayama Daiju <42.daiju@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+rand = "0.8"
+rand_pcg = "0.3"
