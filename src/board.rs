@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     fmt::{self, Write},
     num::NonZeroU8,
 };
@@ -32,11 +31,11 @@ pub struct Square {
     square: [[Option<Number>; 4]; 4],
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Board {
     turn: usize,
     squares: Vec<Square>,
-    table: HashMap<Number, u8>,
+    table: [u8; 20],
 }
 
 impl Square {
@@ -143,7 +142,7 @@ impl Board {
         Board {
             turn: 0,
             squares,
-            table: HashMap::new(),
+            table: [0; 20],
         }
     }
 
@@ -158,7 +157,7 @@ impl Board {
     }
 
     fn take_from_table(&mut self, num: Number) -> Result<(), ()> {
-        let c = self.table.entry(num).or_insert(0);
+        let c = self.table.get_mut(u8::from(num) as usize).unwrap();
         if *c > 0 {
             *c -= 1;
             Ok(())
@@ -168,7 +167,7 @@ impl Board {
     }
 
     fn put_to_table(&mut self, num: Number) {
-        *self.table.entry(num).or_insert(0) += 1;
+        self.table[u8::from(num) as usize] += 1;
     }
 
     fn put_to_square_unchecked(&mut self, row: usize, col: usize, num: Number) {
@@ -215,10 +214,11 @@ impl Board {
 
     pub fn candidates_from_table(&self) -> Vec<(usize, usize, Number)> {
         let mut candidates = Vec::new();
-        for (&num, c) in self.table.iter() {
+        for (i, c) in self.table.iter().enumerate() {
             if *c == 0 {
                 continue;
             }
+            let num = NonZeroU8::new((i + 1) as u8).unwrap();
             for (row, col) in self.square().candidates(num) {
                 candidates.push((row, col, num));
             }
@@ -238,15 +238,9 @@ impl Board {
 impl fmt::Display for Board {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("table:")?;
-        let mut tables = self
-            .table
-            .iter()
-            .filter_map(|(n, c)| if *c == 0 { None } else { Some((*n, *c)) })
-            .collect::<Vec<_>>();
-        tables.sort();
-        for (n, c) in tables {
+        for (i, &c) in self.table.iter().enumerate() {
             for _ in 0..c {
-                f.write_str(&format!(" {}", n))?;
+                f.write_str(&format!(" {}", i + 1))?;
             }
         }
         f.write_char('\n')?;
