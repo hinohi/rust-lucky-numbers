@@ -124,6 +124,14 @@ impl Deck {
         Deck { deck: [0; 20] }
     }
 
+    pub fn from_stack(stack: &[Number]) -> Deck {
+        let mut deck = Deck::new();
+        for &n in stack {
+            deck.incr(n);
+        }
+        deck
+    }
+
     pub fn incr<N: Into<u8>>(&mut self, num: N) {
         self.deck[num.into() as usize - 1] += 1;
     }
@@ -142,8 +150,11 @@ impl Deck {
         self.deck.iter().all(|c| *c == 0)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (usize, u8)> + '_ {
-        self.deck.iter().copied().enumerate()
+    pub fn iter(&self) -> impl Iterator<Item = (Number, u8)> + '_ {
+        self.deck
+            .iter()
+            .enumerate()
+            .map(|(i, c)| (Number::new(i as u8 + 1).unwrap(), *c))
     }
 }
 
@@ -242,11 +253,10 @@ impl Board {
 
     pub fn candidates_from_table(&self) -> Vec<(usize, usize, Number)> {
         let mut candidates = Vec::new();
-        for (i, c) in self.table.iter() {
+        for (num, c) in self.table.iter() {
             if c == 0 {
                 continue;
             }
-            let num = NonZeroU8::new((i + 1) as u8).unwrap();
             for (row, col) in self.square().candidates(num) {
                 candidates.push((row, col, num));
             }
@@ -266,9 +276,9 @@ impl Board {
 impl fmt::Display for Board {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("table:")?;
-        for (i, c) in self.table.iter() {
+        for (num, c) in self.table.iter() {
             for _ in 0..c {
-                f.write_str(&format!(" {}", i + 1))?;
+                f.write_str(&format!(" {}", num))?;
             }
         }
         f.write_char('\n')?;
@@ -336,12 +346,12 @@ mod tests {
     fn deck() {
         let mut deck = Deck::new();
         assert!(deck.is_empty());
-        deck.incr(1);
+        deck.incr(N01);
         assert!(!deck.is_empty());
-        assert_eq!(deck.iter().next(), Some((0, 1)));
-        deck.incr(20);
-        deck.incr(20);
-        assert_eq!(deck.iter().nth(19), Some((19, 2)));
+        assert_eq!(deck.iter().next(), Some((N01, 1)));
+        deck.incr(N20);
+        deck.incr(N20);
+        assert_eq!(deck.iter().nth(19), Some((N20, 2)));
         assert_eq!(deck.decr(1), Ok(()));
         assert_eq!(deck.decr(1), Err(()));
     }
