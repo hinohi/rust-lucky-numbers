@@ -158,10 +158,13 @@ impl Deck {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (Number, u8)> + '_ {
-        self.deck
-            .iter()
-            .enumerate()
-            .map(|(i, c)| (Number::new(i as u8 + 1).unwrap(), *c))
+        self.deck.iter().enumerate().filter_map(|(i, c)| {
+            if *c > 0 {
+                Some((Number::new(i as u8 + 1).unwrap(), *c))
+            } else {
+                None
+            }
+        })
     }
 }
 
@@ -260,10 +263,7 @@ impl Board {
 
     pub fn candidates_from_table(&self) -> Vec<(usize, usize, Number)> {
         let mut candidates = Vec::new();
-        for (num, c) in self.table.iter() {
-            if c == 0 {
-                continue;
-            }
+        for (num, _) in self.table.iter() {
             for (row, col) in self.square().candidates(num) {
                 candidates.push((row, col, num));
             }
@@ -361,7 +361,7 @@ mod tests {
         assert_eq!(deck.iter().next(), Some((N01, 1)));
         deck.incr(N20);
         deck.incr(N20);
-        assert_eq!(deck.iter().nth(19), Some((N20, 2)));
+        assert_eq!(deck.iter().nth(1), Some((N20, 2)));
         assert_eq!(deck.decr(1), Ok(()));
         assert_eq!(deck.decr(1), Err(()));
     }
