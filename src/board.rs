@@ -74,10 +74,10 @@ impl Square {
             false
         }
 
-        if ng_p(self.square[row][col + 1..4].iter().map(|n| *n), num) {
+        if ng_p(self.square[row][col + 1..4].iter().copied(), num) {
             return false;
         }
-        if ng_m(self.square[row][0..col].iter().rev().map(|n| *n), num) {
+        if ng_m(self.square[row][0..col].iter().rev().copied(), num) {
             return false;
         }
         if ng_p(self.square[row + 1..4].iter().map(|r| r[col]), num) {
