@@ -73,13 +73,16 @@ fn main() {
             break;
         }
         println!("\n{}", board);
-        let mut pop = None;
+        let mut hand = None;
         loop {
-            if let Some(num) = pop {
+            if hand.is_none() && board.table_is_empty() {
+                hand = stack.pop();
+            }
+            if let Some(num) = hand {
                 println!("{:?}", board.candidates_with_num(num));
             }
-            match parse_input(pop) {
-                TurnAction::PopStack => pop = stack.pop(),
+            match parse_input(hand) {
+                TurnAction::PopStack => hand = stack.pop(),
                 TurnAction::Put(action) => match board.put(action) {
                     Ok(()) => continue 'GAME,
                     Err(()) => (),

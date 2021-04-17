@@ -149,6 +149,10 @@ impl Board {
         }
     }
 
+    pub fn table_is_empty(&self) -> bool {
+        self.table.iter().all(|&c| c == 0)
+    }
+
     fn square_mut(&mut self) -> &mut Square {
         let i = self.turn % self.squares.len();
         self.squares.get_mut(i).unwrap()
@@ -160,7 +164,7 @@ impl Board {
     }
 
     fn take_from_table(&mut self, num: Number) -> Result<(), ()> {
-        let c = self.table.get_mut(u8::from(num) as usize).unwrap();
+        let c = self.table.get_mut(u8::from(num) as usize - 1).unwrap();
         if *c > 0 {
             *c -= 1;
             Ok(())
@@ -170,7 +174,7 @@ impl Board {
     }
 
     fn put_to_table(&mut self, num: Number) {
-        self.table[u8::from(num) as usize] += 1;
+        self.table[u8::from(num) as usize - 1] += 1;
     }
 
     fn put_to_square_unchecked(&mut self, row: usize, col: usize, num: Number) {
