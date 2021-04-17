@@ -116,9 +116,12 @@ impl Square {
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum PutAction {
-    StackToSquare(usize, usize, Number),
-    StackToTable(Number),
-    TableToSquare(usize, usize, Number),
+    /// 山札から取ってボードに置く
+    StackToSquare { row: usize, col: usize, num: Number },
+    /// 山札から取った数をテーブルに置く
+    StackToTable { num: Number },
+    /// テーブルからボードに置く
+    TableToSquare { row: usize, col: usize, num: Number },
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -189,9 +192,11 @@ impl Board {
 
     pub fn put_unchecked(&mut self, action: PutAction) {
         match action {
-            PutAction::StackToSquare(row, col, num) => self.put_to_square_unchecked(row, col, num),
-            PutAction::StackToTable(num) => self.put_to_table(num),
-            PutAction::TableToSquare(row, col, num) => {
+            PutAction::StackToSquare { row, col, num } => {
+                self.put_to_square_unchecked(row, col, num)
+            }
+            PutAction::StackToTable { num } => self.put_to_table(num),
+            PutAction::TableToSquare { row, col, num } => {
                 self.take_from_table(num).unwrap();
                 self.put_to_square_unchecked(row, col, num);
             }
@@ -201,9 +206,9 @@ impl Board {
 
     pub fn put(&mut self, action: PutAction) -> Result<(), ()> {
         match action {
-            PutAction::StackToSquare(row, col, num) => self.put_to_square(row, col, num)?,
-            PutAction::StackToTable(num) => self.put_to_table(num),
-            PutAction::TableToSquare(row, col, num) => {
+            PutAction::StackToSquare { row, col, num } => self.put_to_square(row, col, num)?,
+            PutAction::StackToTable { num } => self.put_to_table(num),
+            PutAction::TableToSquare { row, col, num } => {
                 self.take_from_table(num)?;
                 self.put_to_square(row, col, num)?;
             }

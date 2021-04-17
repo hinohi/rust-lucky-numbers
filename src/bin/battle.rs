@@ -34,10 +34,10 @@ fn parse_input(num: Option<Number>) -> TurnAction {
                 let mut s = String::new();
                 cin.read_line(&mut s).unwrap();
                 if s.trim() == "table" {
-                    return TurnAction::Put(PutAction::StackToTable(num));
+                    return TurnAction::Put(PutAction::StackToTable { num });
                 }
                 if let Some((row, col)) = parse_pos(s.trim()) {
-                    return TurnAction::Put(PutAction::StackToSquare(row, col, num));
+                    return TurnAction::Put(PutAction::StackToSquare { row, col, num });
                 }
             }
             None => {
@@ -53,7 +53,7 @@ fn parse_input(num: Option<Number>) -> TurnAction {
                 let row_col = words.next().and_then(|s| parse_pos(s));
                 match (n, row_col) {
                     (Some(n), Some((row, col))) => {
-                        return TurnAction::Put(PutAction::TableToSquare(row, col, n))
+                        return TurnAction::Put(PutAction::TableToSquare { row, col, num: n })
                     }
                     _ => (),
                 }
