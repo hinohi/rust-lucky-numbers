@@ -44,10 +44,17 @@ pub struct Board {
 }
 
 impl Square {
+    #[inline]
+    pub fn is_vacant(&self, row: usize, col: usize) -> bool {
+        self.square[row][col].is_none()
+    }
+
+    #[inline]
     pub fn put_unchecked(&mut self, row: usize, col: usize, num: Number) -> Option<Number> {
         self.square[row][col].replace(num)
     }
 
+    #[inline]
     pub fn put(&mut self, row: usize, col: usize, num: Number) -> Result<Option<Number>, ()> {
         if self.can_put(row, col, num) {
             Ok(self.put_unchecked(row, col, num))
@@ -326,10 +333,13 @@ mod tests {
     #[test]
     fn square() {
         let mut sq = Square::default();
+        assert!(sq.is_vacant(0, 0));
+        assert!(sq.is_vacant(0, 1));
         assert_eq!(sq.put(0, 0, N04), Ok(None));
         assert_eq!(sq.put(1, 1, N10), Ok(None));
         assert_eq!(sq.put(2, 2, N15), Ok(None));
         assert_eq!(sq.put(3, 3, N17), Ok(None));
+        assert!(!sq.is_vacant(0, 0));
         assert_eq!(sq.count(), 4);
         assert_eq!(sq.put(2, 3, N16), Ok(None));
         assert_eq!(sq.put(3, 0, N15), Ok(None));
