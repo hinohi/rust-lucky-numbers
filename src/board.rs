@@ -32,10 +32,15 @@ pub struct Square {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct Deck {
+    deck: [u8; 20],
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Board {
     turn: usize,
     squares: Vec<Square>,
-    table: [u8; 20],
+    table: Deck,
 }
 
 impl Square {
@@ -114,6 +119,34 @@ impl Square {
     }
 }
 
+impl Deck {
+    pub fn new() -> Deck {
+        Deck { deck: [0; 20] }
+    }
+
+    pub fn incr<N: Into<u8>>(&mut self, num: N) {
+        self.deck[num.into() as usize - 1] += 1;
+    }
+
+    pub fn decr<N: Into<u8>>(&mut self, num: N) -> Result<(), ()> {
+        let c = self.deck.get_mut(num.into() as usize - 1).unwrap();
+        if *c > 0 {
+            *c -= 1;
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.deck.iter().all(|c| *c == 0)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (usize, u8)> + '_ {
+        self.deck.iter().copied().enumerate()
+    }
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum PutAction {
     /// 山札から取ってボードに置く
@@ -145,12 +178,12 @@ impl Board {
         Board {
             turn: 0,
             squares,
-            table: [0; 20],
+            table: Deck::new(),
         }
     }
 
     pub fn table_is_empty(&self) -> bool {
-        self.table.iter().all(|&c| c == 0)
+        self.table.is_empty()
     }
 
     fn square_mut(&mut self) -> &mut Square {
@@ -163,30 +196,16 @@ impl Board {
         self.squares.get(i).unwrap()
     }
 
-    fn take_from_table(&mut self, num: Number) -> Result<(), ()> {
-        let c = self.table.get_mut(u8::from(num) as usize - 1).unwrap();
-        if *c > 0 {
-            *c -= 1;
-            Ok(())
-        } else {
-            Err(())
-        }
-    }
-
-    fn put_to_table(&mut self, num: Number) {
-        self.table[u8::from(num) as usize - 1] += 1;
-    }
-
     fn put_to_square_unchecked(&mut self, row: usize, col: usize, num: Number) {
         if let Some(n) = self.square_mut().put_unchecked(row, col, num) {
-            self.put_to_table(n)
+            self.table.incr(n)
         }
     }
 
     fn put_to_square(&mut self, row: usize, col: usize, num: Number) -> Result<(), ()> {
         match self.square_mut().put(row, col, num) {
             Ok(Some(n)) => {
-                self.put_to_table(n);
+                self.table.incr(n);
                 Ok(())
             }
             Ok(None) => Ok(()),
@@ -199,9 +218,9 @@ impl Board {
             PutAction::StackToSquare { row, col, num } => {
                 self.put_to_square_unchecked(row, col, num)
             }
-            PutAction::StackToTable { num } => self.put_to_table(num),
+            PutAction::StackToTable { num } => self.table.incr(num),
             PutAction::TableToSquare { row, col, num } => {
-                self.take_from_table(num).unwrap();
+                self.table.decr(num).unwrap();
                 self.put_to_square_unchecked(row, col, num);
             }
         }
@@ -211,9 +230,9 @@ impl Board {
     pub fn put(&mut self, action: PutAction) -> Result<(), ()> {
         match action {
             PutAction::StackToSquare { row, col, num } => self.put_to_square(row, col, num)?,
-            PutAction::StackToTable { num } => self.put_to_table(num),
+            PutAction::StackToTable { num } => self.table.incr(num),
             PutAction::TableToSquare { row, col, num } => {
-                self.take_from_table(num)?;
+                self.table.decr(num)?;
                 self.put_to_square(row, col, num)?;
             }
         };
@@ -223,8 +242,8 @@ impl Board {
 
     pub fn candidates_from_table(&self) -> Vec<(usize, usize, Number)> {
         let mut candidates = Vec::new();
-        for (i, c) in self.table.iter().enumerate() {
-            if *c == 0 {
+        for (i, c) in self.table.iter() {
+            if c == 0 {
                 continue;
             }
             let num = NonZeroU8::new((i + 1) as u8).unwrap();
@@ -247,7 +266,7 @@ impl Board {
 impl fmt::Display for Board {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("table:")?;
-        for (i, &c) in self.table.iter().enumerate() {
+        for (i, c) in self.table.iter() {
             for _ in 0..c {
                 f.write_str(&format!(" {}", i + 1))?;
             }
@@ -311,5 +330,19 @@ mod tests {
         assert_eq!(sq.put(3, 2, N17), Ok(None));
         assert_eq!(sq.put(1, 0, N09), Ok(None));
         assert_eq!(sq.put(1, 1, N06), Err(()));
+    }
+
+    #[test]
+    fn deck() {
+        let mut deck = Deck::new();
+        assert!(deck.is_empty());
+        deck.incr(1);
+        assert!(!deck.is_empty());
+        assert_eq!(deck.iter().next(), Some((0, 1)));
+        deck.incr(20);
+        deck.incr(20);
+        assert_eq!(deck.iter().nth(19), Some((19, 2)));
+        assert_eq!(deck.decr(1), Ok(()));
+        assert_eq!(deck.decr(1), Err(()));
     }
 }
